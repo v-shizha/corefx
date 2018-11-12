@@ -9,8 +9,10 @@ namespace System.IO.Pipelines
     /// </summary>
     public abstract class PipeScheduler
     {
-        private static readonly ThreadPoolScheduler s_threadPoolScheduler = new ThreadPoolScheduler();
+        private static readonly ThreadPoolScheduler s_threadPoolScheduler = new ThreadPoolScheduler() { IsDefaultThreadPoolScheduler = true };
         private static readonly InlineScheduler s_inlineScheduler = new InlineScheduler();
+
+        internal bool IsDefaultThreadPoolScheduler { get; set; }
 
         /// <summary>
         /// The <see cref="PipeScheduler"/> implementation that queues callbacks to thread pool

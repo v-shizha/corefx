@@ -58,7 +58,7 @@ namespace System.IO.Pipelines
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Complete(out CompletionData completionData)
+        public void Complete(CompletionData completionData)
         {
             Action<object> currentCompletion = _completion;
             object currentState = _completionState;
@@ -66,12 +66,10 @@ namespace System.IO.Pipelines
             _completion = s_awaitableIsCompleted;
             _completionState = null;
 
-            completionData = default;
-
             if (!ReferenceEquals(currentCompletion, s_awaitableIsCompleted) &&
                 !ReferenceEquals(currentCompletion, s_awaitableIsNotCompleted))
             {
-                completionData = new CompletionData(currentCompletion, currentState, _executionContext, _synchronizationContext);
+                completionData.Set(currentCompletion, currentState, _executionContext, _synchronizationContext);
             }
             else if (_canceledState == CanceledState.CancellationRequested)
             {
@@ -101,10 +99,8 @@ namespace System.IO.Pipelines
             }
         }
 
-        public void OnCompleted(Action<object> continuation, object state, ValueTaskSourceOnCompletedFlags flags, out CompletionData completionData, out bool doubleCompletion)
+        public void OnCompleted(Action<object> continuation, object state, ValueTaskSourceOnCompletedFlags flags, CompletionData completionData, out bool doubleCompletion)
         {
-            completionData = default;
-
             doubleCompletion = false;
             Action<object> awaitableState = _completion;
             if (ReferenceEquals(awaitableState, s_awaitableIsNotCompleted))
@@ -131,20 +127,20 @@ namespace System.IO.Pipelines
 
             if (ReferenceEquals(awaitableState, s_awaitableIsCompleted))
             {
-                completionData = new CompletionData(continuation, state, _executionContext, _synchronizationContext);
+                completionData.Set(continuation, state, _executionContext, _synchronizationContext);
                 return;
             }
 
             if (!ReferenceEquals(awaitableState, s_awaitableIsNotCompleted))
             {
                 doubleCompletion = true;
-                completionData = new CompletionData(continuation, state, _executionContext, _synchronizationContext);
+                completionData.Set(continuation, state, _executionContext, _synchronizationContext);
             }
         }
 
-        public void Cancel(out CompletionData completionData)
+        public void Cancel(CompletionData completionData)
         {
-            Complete(out completionData);
+            Complete(completionData);
             _canceledState = completionData.Completion == null ?
                 CanceledState.CancellationPreRequested :
                 CanceledState.CancellationRequested;
