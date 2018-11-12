@@ -141,9 +141,9 @@ namespace System.IO.Pipelines
         public void Cancel(CompletionData completionData)
         {
             Complete(completionData);
-            _canceledState = completionData.Completion == null ?
-                CanceledState.CancellationPreRequested :
-                CanceledState.CancellationRequested;
+            _canceledState = completionData.HasCompletion ?
+                CanceledState.CancellationRequested :
+                CanceledState.CancellationPreRequested;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

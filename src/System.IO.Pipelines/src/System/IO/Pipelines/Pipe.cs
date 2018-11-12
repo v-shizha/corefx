@@ -329,6 +329,7 @@ namespace System.IO.Pipelines
         internal ValueTask<FlushResult> FlushAsync(CancellationToken cancellationToken)
         {
             CompletionData completionData = _readerCompletionData;
+            completionData.Reset();
             CancellationTokenRegistration cancellationTokenRegistration;
             ValueTask<FlushResult> result;
             lock (_sync)
@@ -378,6 +379,7 @@ namespace System.IO.Pipelines
         internal void CompleteWriter(Exception exception)
         {
             CompletionData completionData = _readerCompletionData;
+            completionData.Reset();
             PipeCompletionCallbacks completionCallbacks;
             bool readerCompleted;
 
@@ -428,6 +430,7 @@ namespace System.IO.Pipelines
             BufferSegment returnEnd = null;
 
             CompletionData completionData = _writerCompletionData;
+            completionData.Reset();
 
             lock (_sync)
             {
@@ -511,6 +514,7 @@ namespace System.IO.Pipelines
         {
             PipeCompletionCallbacks completionCallbacks;
             CompletionData completionData = _writerCompletionData;
+            completionData.Reset();
             bool writerCompleted;
 
             lock (_sync)
@@ -564,6 +568,7 @@ namespace System.IO.Pipelines
         internal void CancelPendingRead()
         {
             CompletionData completionData = _readerCompletionData;
+            completionData.Reset();
             lock (_sync)
             {
                 _readerAwaitable.Cancel(completionData);
@@ -574,6 +579,7 @@ namespace System.IO.Pipelines
         internal void CancelPendingFlush()
         {
             CompletionData completionData = _writerCompletionData;
+            completionData.Reset();
             lock (_sync)
             {
                 _writerAwaitable.Cancel(completionData);
@@ -712,11 +718,12 @@ namespace System.IO.Pipelines
 
         internal void OnReadAsyncCompleted(Action<object> continuation, object state, ValueTaskSourceOnCompletedFlags flags)
         {
-            CompletionData completionData;
+            CompletionData completionData = _readerCompletionData;
+            completionData.Reset();
             bool doubleCompletion;
             lock (_sync)
             {
-                _readerAwaitable.OnCompleted(continuation, state, flags, out completionData, out doubleCompletion);
+                _readerAwaitable.OnCompleted(continuation, state, flags, completionData, out doubleCompletion);
             }
             if (doubleCompletion)
             {
@@ -817,11 +824,12 @@ namespace System.IO.Pipelines
 
         internal void OnFlushAsyncCompleted(Action<object> continuation, object state, ValueTaskSourceOnCompletedFlags flags)
         {
-            CompletionData completionData;
+            CompletionData completionData = _writerCompletionData;
+            completionData.Reset();
             bool doubleCompletion;
             lock (_sync)
             {
-                _writerAwaitable.OnCompleted(continuation, state, flags, out completionData, out doubleCompletion);
+                _writerAwaitable.OnCompleted(continuation, state, flags, completionData, out doubleCompletion);
             }
             if (doubleCompletion)
             {
@@ -832,20 +840,22 @@ namespace System.IO.Pipelines
 
         private void ReaderCancellationRequested()
         {
-            CompletionData completionData;
+            CompletionData completionData = _readerCompletionData;
+            completionData.Reset();
             lock (_sync)
             {
-                _readerAwaitable.Cancel(out completionData);
+                _readerAwaitable.Cancel(completionData);
             }
             TrySchedule(_readerScheduler, completionData);
         }
 
         private void WriterCancellationRequested()
         {
-            CompletionData completionData;
+            CompletionData completionData = _writerCompletionData;
+            completionData.Reset();
             lock (_sync)
             {
-                _writerAwaitable.Cancel(out completionData);
+                _writerAwaitable.Cancel(completionData);
             }
             TrySchedule(_writerScheduler, completionData);
         }
