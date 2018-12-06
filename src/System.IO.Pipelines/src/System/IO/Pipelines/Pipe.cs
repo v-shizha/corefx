@@ -180,8 +180,7 @@ namespace System.IO.Pipelines
             if (_writingHead == null)
             {
                 // We need to allocate memory to write since nobody has written before
-                BufferSegment newSegment = CreateSegmentUnsynchronized();
-                newSegment.SetMemory(_pool.Rent(GetSegmentSize(sizeHint)));
+                BufferSegment newSegment = CreateSegmentUnsynchronized(sizeHint);
 
                 // Set all the pointers
                 _writingHead = _readHead = _readTail = newSegment;
@@ -192,8 +191,7 @@ namespace System.IO.Pipelines
 
                 if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < sizeHint)
                 {
-                    BufferSegment newSegment = CreateSegmentUnsynchronized();
-                    newSegment.SetMemory(_pool.Rent(GetSegmentSize(sizeHint)));
+                    BufferSegment newSegment = CreateSegmentUnsynchronized(sizeHint);
 
                     _writingHead.SetNext(newSegment);
                     _writingHead = newSegment;
@@ -210,23 +208,34 @@ namespace System.IO.Pipelines
             return adjustedToMaximumSize;
         }
 
-        private BufferSegment CreateSegmentUnsynchronized()
+        private BufferSegment CreateSegmentUnsynchronized(int sizeHint)
         {
+            BufferSegment segment = null;
             if (_pooledSegmentCount > 0)
             {
                 _pooledSegmentCount--;
-                return _bufferSegmentPool[_pooledSegmentCount];
+                segment = _bufferSegmentPool[_pooledSegmentCount];
+            }
+            else
+            {
+                segment = new BufferSegment();
+                segment.SetMemory(_pool.Rent(GetSegmentSize(sizeHint)));
             }
 
-            return new BufferSegment();
+            return segment;
         }
 
         private void ReturnSegmentUnsynchronized(BufferSegment segment)
         {
             if (_pooledSegmentCount < _bufferSegmentPool.Length)
             {
+                segment.ResetMemory();
                 _bufferSegmentPool[_pooledSegmentCount] = segment;
                 _pooledSegmentCount++;
+            }
+            else
+            {
+                segment.ClearMemory();
             }
         }
 
@@ -420,35 +429,35 @@ namespace System.IO.Pipelines
                     // Check if we consumed entire last segment
                     // if we are going to return commit head we need to check that there is no writing operation that
                     // might be using tailspace
-                    if (consumedIndex == returnEnd.Length && !_operationState.IsWritingActive)
-                    {
-                        BufferSegment nextBlock = returnEnd.NextSegment;
-                        if (_readTail == returnEnd)
-                        {
-                            _readTail = nextBlock;
-                            _readTailIndex = 0;
-                        }
+                    //if (consumedIndex == returnEnd.Length && !_operationState.IsWritingActive)
+                    //{
+                    //    BufferSegment nextBlock = returnEnd.NextSegment;
+                    //    if (_readTail == returnEnd)
+                    //    {
+                    //        _readTail = nextBlock;
+                    //        _readTailIndex = 0;
+                    //    }
 
-                        _readHead = nextBlock;
-                        _readHeadIndex = 0;
+                    //    _readHead = nextBlock;
+                    //    _readHeadIndex = 0;
 
-                        // Reset the writing head to null if it's the return block
-                        // then null it out as we're about to reset that memory
-                        if (_writingHead == returnEnd)
-                        {
-                            // If we're about to null out the _writingHead then assert the list is empty
-                            Debug.Assert(_readHead == null);
-                            Debug.Assert(_readTail == null);
-                            _writingHead = null;
-                        }
+                    //    // Reset the writing head to null if it's the return block
+                    //    // then null it out as we're about to reset that memory
+                    //    if (_writingHead == returnEnd)
+                    //    {
+                    //        // If we're about to null out the _writingHead then assert the list is empty
+                    //        Debug.Assert(_readHead == null);
+                    //        Debug.Assert(_readTail == null);
+                    //        _writingHead = null;
+                    //    }
 
-                        returnEnd = nextBlock;
-                    }
-                    else
-                    {
-                        _readHead = consumedSegment;
-                        _readHeadIndex = consumedIndex;
-                    }
+                    //    returnEnd = nextBlock;
+                    //}
+                    //else
+                    //{
+                    _readHead = consumedSegment;
+                    _readHeadIndex = consumedIndex;
+                    //}
                 }
 
                 // We reset the awaitable to not completed if we've examined everything the producer produced so far
@@ -465,7 +474,6 @@ namespace System.IO.Pipelines
 
                 while (returnStart != null && returnStart != returnEnd)
                 {
-                    returnStart.ResetMemory();
                     ReturnSegmentUnsynchronized(returnStart);
                     returnStart = returnStart.NextSegment;
                 }
@@ -706,7 +714,7 @@ namespace System.IO.Pipelines
                     BufferSegment returnSegment = segment;
                     segment = segment.NextSegment;
 
-                    returnSegment.ResetMemory();
+                    returnSegment.ClearMemory();
                 }
 
                 _writingHead = null;

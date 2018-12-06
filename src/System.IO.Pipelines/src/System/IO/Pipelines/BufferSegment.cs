@@ -59,6 +59,13 @@ namespace System.IO.Pipelines
 
         public void ResetMemory()
         {
+            End = 0;
+            RunningIndex = 0;
+            NextSegment = null;
+        }
+
+        public void ClearMemory()
+        {
             _memoryOwner.Dispose();
             _memoryOwner = null;
             AvailableMemory = default;
