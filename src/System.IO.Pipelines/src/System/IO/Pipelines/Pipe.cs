@@ -474,8 +474,9 @@ namespace System.IO.Pipelines
 
                 while (returnStart != null && returnStart != returnEnd)
                 {
+                    var next = returnStart.NextSegment;
                     ReturnSegmentUnsynchronized(returnStart);
-                    returnStart = returnStart.NextSegment;
+                    returnStart = next;
                 }
 
                 _operationState.EndRead();

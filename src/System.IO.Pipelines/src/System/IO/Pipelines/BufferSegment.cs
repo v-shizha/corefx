@@ -59,8 +59,8 @@ namespace System.IO.Pipelines
 
         public void ResetMemory()
         {
-            End = 0;
             RunningIndex = 0;
+            End = 0;
             NextSegment = null;
         }
 
