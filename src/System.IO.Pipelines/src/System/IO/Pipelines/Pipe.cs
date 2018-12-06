@@ -215,6 +215,7 @@ namespace System.IO.Pipelines
             {
                 _pooledSegmentCount--;
                 segment = _bufferSegmentPool[_pooledSegmentCount];
+                segment.ResetMemory();
             }
             else
             {
@@ -229,7 +230,6 @@ namespace System.IO.Pipelines
         {
             if (_pooledSegmentCount < _bufferSegmentPool.Length)
             {
-                segment.ResetMemory();
                 _bufferSegmentPool[_pooledSegmentCount] = segment;
                 _pooledSegmentCount++;
             }
